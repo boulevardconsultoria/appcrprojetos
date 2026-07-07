@@ -1,57 +1,65 @@
-from abacatepay import AbacatePay
-from abacatepay.products import Product
-from abacatepay.customers import CustomerMetadata
+import httpx
 from django.conf import settings
+
+BASE_URL = 'https://api.abacatepay.com/v1'
 
 
 class AbacatePayClient:
     def __init__(self):
-        self.client = AbacatePay(settings.ABACATEPAY_API_KEY)
-
-    def criar_cliente(self, nome: str, email: str, celular: str = '', tax_id: str = '') -> str:
-        metadata = CustomerMetadata(
-            name=nome,
-            email=email,
-            cellphone=celular,
-            tax_id=tax_id,
-        )
-        customer = self.client.customers.create(metadata)
-        return customer.id
+        self.headers = {
+            'Authorization': f'Bearer {settings.ABACATEPAY_API_KEY}',
+            'Content-Type': 'application/json',
+        }
 
     def criar_checkout(
         self,
         projeto_titulo: str,
         valor_centavos: int,
-        customer_id: str | None = None,
-        customer_metadata: CustomerMetadata | None = None,
+        customer_name: str = '',
+        customer_email: str = '',
+        customer_cellphone: str = '',
+        customer_tax_id: str = '',
         return_url: str = '',
         completion_url: str = '',
     ) -> dict:
-        product = Product(
-            external_id='projeto',
-            name=projeto_titulo,
-            quantity=1,
-            price=valor_centavos,
+        payload = {
+            'products': [{
+                'externalId': 'projeto',
+                'name': projeto_titulo,
+                'description': projeto_titulo,
+                'quantity': 1,
+                'price': valor_centavos,
+            }],
+            'returnUrl': return_url or 'https://appcrprojetos.pages.dev/catalogo',
+            'completionUrl': completion_url or 'https://appcrprojetos.pages.dev/dashboard',
+            'frequency': 'ONE_TIME',
+            'methods': ['PIX'],
+        }
+
+        if customer_name and customer_tax_id:
+            payload['customer'] = {
+                'name': customer_name,
+                'email': customer_email,
+                'cellphone': customer_cellphone,
+                'taxId': customer_tax_id,
+            }
+
+        resp = httpx.post(
+            f'{BASE_URL}/billing/create',
+            json=payload,
+            headers=self.headers,
         )
 
-        kwargs = {
-            'products': [product],
-            'return_url': return_url,
-            'completion_url': completion_url,
-        }
-        if customer_id:
-            kwargs['customer_id'] = customer_id
-        elif customer_metadata:
-            kwargs['customer'] = customer_metadata
+        if resp.status_code != 200:
+            error_msg = resp.json().get('error', str(resp.text))
+            raise Exception(f'AbacatePay error: {error_msg}')
 
-        billing = self.client.billing.create(**kwargs)
+        data = resp.json()['data']
         return {
-            'id': billing.id,
-            'url': billing.url,
-            'amount': billing.amount,
-            'status': billing.status,
-            'dev_mode': billing.dev_mode,
+            'id': data['id'],
+            'url': data['url'],
+            'amount': data['amount'],
+            'status': data['status'],
+            'dev_mode': data['devMode'],
+            'customer_id': data.get('customer', {}).get('id', ''),
         }
-
-    def listar_cobrancas(self):
-        return self.client.billing.list()

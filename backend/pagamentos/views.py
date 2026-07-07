@@ -75,26 +75,21 @@ class CriarCheckoutView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        valor = int(float(projeto.preco_avulso) * 100) if projeto.preco_avulso else 5
-        if valor < 5:
-            valor = 5
+        valor = int(float(projeto.preco_avulso) * 100) if projeto.preco_avulso else 100
+        if valor < 100:
+            valor = 100
 
         try:
             client = AbacatePayClient()
-
             user = request.user
-            customer_metadata = {
-                'name': user.get_full_name() or user.email,
-                'email': user.email,
-                'cellphone': user.telefone,
-                'tax_id': user.cpf_cnpj,
-            }
 
             checkout = client.criar_checkout(
                 projeto_titulo=projeto.titulo,
                 valor_centavos=valor,
-                customer_metadata=customer_metadata,
-                return_url='',
+                customer_name=user.get_full_name() or user.email,
+                customer_email=user.email,
+                customer_cellphone=user.telefone,
+                customer_tax_id=user.cpf_cnpj,
                 completion_url=request.build_absolute_uri('/api/pagamentos/webhook/'),
             )
 
