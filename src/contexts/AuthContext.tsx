@@ -1,8 +1,9 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { onAuthStateChanged, type User } from 'firebase/auth'
+import { onAuthStateChanged, getIdToken, type User } from 'firebase/auth'
 import { auth } from '@/services/firebase/config'
 import { getUserData } from '@/services/auth'
 import { onDemoAuthStateChanged, getDemoUserData, getCurrentDemoUser } from '@/demo/auth'
+import { exchangeFirebaseToken, clearTokens, getAccessToken } from '@/services/api'
 import type { UserData } from '@/types'
 
 const isDemo = import.meta.env.VITE_DEMO_MODE === 'true'
@@ -21,6 +22,7 @@ interface AuthContextType {
   loading: boolean
   isPremium: boolean
   isAdmin: boolean
+  djangoAuthed: boolean
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -29,12 +31,29 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   isPremium: false,
   isAdmin: false,
+  djangoAuthed: false,
 })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<(User | DemoUser) | null>(null)
   const [userData, setUserData] = useState<UserData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [djangoAuthed, setDjangoAuthed] = useState(!!getAccessToken())
+
+  async function syncDjangoToken(firebaseUser: User | null) {
+    if (!firebaseUser) {
+      clearTokens()
+      setDjangoAuthed(false)
+      return
+    }
+    try {
+      const idToken = await getIdToken(firebaseUser)
+      await exchangeFirebaseToken(idToken)
+      setDjangoAuthed(true)
+    } catch (err) {
+      console.error('Erro ao sincronizar com Django:', err)
+    }
+  }
 
   useEffect(() => {
     if (isDemo) {
@@ -62,10 +81,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         setUser(firebaseUser)
         if (firebaseUser) {
-          const data = await getUserData(firebaseUser.uid)
+          const [data] = await Promise.all([
+            getUserData(firebaseUser.uid),
+            syncDjangoToken(firebaseUser),
+          ])
           setUserData(data)
         } else {
           setUserData(null)
+          clearTokens()
+          setDjangoAuthed(false)
         }
       } catch (err) {
         console.error('Auth error:', err)
@@ -83,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAdmin = userData?.role === 'admin'
 
   return (
-    <AuthContext.Provider value={{ user, userData, loading, isPremium, isAdmin }}>
+    <AuthContext.Provider value={{ user, userData, loading, isPremium, isAdmin, djangoAuthed }}>
       {children}
     </AuthContext.Provider>
   )

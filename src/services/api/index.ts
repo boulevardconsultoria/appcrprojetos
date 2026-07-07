@@ -1,0 +1,6 @@
+export { api, setTokens, clearTokens, getAccessToken } from './client'
+export { exchangeFirebaseToken, logoutApi, fetchPerfil, updatePerfil } from './auth'
+export { getProjetos, getProjetoBySlug, getCategorias } from './catalogo'
+export { getDownloads, registerDownload, getDownloadUrl } from './downloads'
+export type { ProjetoList, ProjetoDetail, Categoria } from './catalogo'
+export type { DownloadRecord } from './downloads'
