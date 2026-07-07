@@ -130,9 +130,8 @@ R2_SECRET_ACCESS_KEY = config('R2_SECRET_ACCESS_KEY', default='')
 R2_BUCKET_NAME = config('R2_BUCKET_NAME', default='crprojetos')
 R2_PUBLIC_URL = config('R2_PUBLIC_URL', default='')
 
-# Asaas
-ASAAS_API_KEY = config('ASAAS_API_KEY', default='')
-ASAAS_ENVIRONMENT = config('ASAAS_ENVIRONMENT', default='sandbox')
+# AbacatePay
+ABACATEPAY_API_KEY = config('ABACATEPAY_API_KEY', default='')
 
 # Celery / Redis
 CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
