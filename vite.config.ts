@@ -4,8 +4,10 @@ import tailwindcss from '@tailwindcss/vite'
 
 import path from 'path'
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), cloudflare()],
   server: {
     port: 8080,
   },
