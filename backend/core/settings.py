@@ -11,6 +11,11 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
 
+# Railway public URL (auto-adicionado quando presente)
+RAILWAY_URL = os.environ.get('RAILWAY_STATIC_URL')
+if RAILWAY_URL:
+    ALLOWED_HOSTS.append(RAILWAY_URL)
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -62,16 +67,34 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': config('DB_ENGINE', default='django.db.backends.postgresql'),
-        'NAME': config('DB_NAME', default='crprojetos'),
-        'USER': config('DB_USER', default='crprojetos'),
-        'PASSWORD': config('DB_PASSWORD', default=''),
-        'HOST': config('DB_HOST', default='localhost'),
-        'PORT': config('DB_PORT', default='5432'),
+DATABASE_URL = os.environ.get('DATABASE_URL')
+if DATABASE_URL:
+    import re
+    m = re.match(r'postgres(?:ql)?://(.+?):(.+?)@(.+?):(\d+)/(.+)', DATABASE_URL)
+    if m:
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'USER': m.group(1),
+                'PASSWORD': m.group(2),
+                'HOST': m.group(3),
+                'PORT': m.group(4),
+                'NAME': m.group(5),
+            }
+        }
+    else:
+        DATABASES = {'default': {}}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': config('DB_ENGINE', default='django.db.backends.postgresql'),
+            'NAME': config('DB_NAME', default='crprojetos'),
+            'USER': config('DB_USER', default='crprojetos'),
+            'PASSWORD': config('DB_PASSWORD', default=''),
+            'HOST': config('DB_HOST', default='localhost'),
+            'PORT': config('DB_PORT', default='5432'),
+        }
     }
-}
 
 AUTH_USER_MODEL = 'contas.Usuario'
 
@@ -134,8 +157,9 @@ R2_PUBLIC_URL = config('R2_PUBLIC_URL', default='')
 ABACATEPAY_API_KEY = config('ABACATEPAY_API_KEY', default='')
 
 # Celery / Redis
-CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
+REDIS_URL = os.environ.get('REDIS_URL') or config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
 
 # Firebase Admin SDK
 FIREBASE_SERVICE_ACCOUNT_PATH = config('FIREBASE_SERVICE_ACCOUNT_PATH', default='')
